@@ -4,123 +4,155 @@ import { history } from '../stores/history';
 import { theme } from '../stores/theme';
 
 const hostname = window.location.hostname;
+let isAuthenticated = false;
 
 export const commands: Record<string, (args: string[]) => Promise<string> | string> = {
-  help: () => 'Available commands: ' + Object.keys(commands).join(', '),
-  hostname: () => hostname,
-  whoami: () => 'guest',
-  date: () => new Date().toLocaleString(),
-  vi: () => `why use vi? try 'emacs'`,
-  vim: () => `why use vim? try 'emacs'`,
-  emacs: () => `why use emacs? try 'vim'`,
-  echo: (args: string[]) => args.join(' '),
-  sudo: (args: string[]) => {
-    window.open('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+ help: () => 'Available commands: ' + Object.keys(commands).join(', '),
+ hostname: () => isAuthenticated ? hostname : 'Authentication required',
+ whoami: () => isAuthenticated ? 'guest' : 'Authentication required',
+ date: () => isAuthenticated ? new Date().toLocaleString() : 'Authentication required',
+ vi: () => isAuthenticated ? `why use vi? try 'emacs'` : 'Authentication required',
+ vim: () => isAuthenticated ? `why use vim? try 'emacs'` : 'Authentication required',
+ emacs: () => isAuthenticated ? `why use emacs? try 'vim'` : 'Authentication required',
+ echo: (args: string[]) => isAuthenticated ? args.join(' ') : 'Authentication required',
+ sudo: async (args: string[]) => {
+   // Simulate password prompt
+   const enteredPassword = prompt('Enter your password:');
 
-    return `Permission denied: unable to run the command '${args[0]}' as root.`;
-  },
-  theme: (args: string[]) => {
-    const usage = `Usage: theme [args].
-    [args]:
-      ls: list all available themes
-      set: set theme to [theme]
+   // Replace the condition with your actual password validation logic
+   if (enteredPassword === 'DoubleDown!!') {
+       isAuthenticated = true;
+       // Change whoami from guest to sudo
+       commands['whoami'] = () => isAuthenticated ? 'sudo' : 'Authentication required';
+       return `Authentication successful. You can now run '${args.join(' ')}' as root.`;
+   } else {
+       isAuthenticated = false;
+       return 'Authentication failed. Permission denied.';
+   }
+},
 
-    [Examples]:
-      theme ls
-      theme set gruvboxdark
-    `;
-    if (args.length === 0) {
-      return usage;
-    }
+ theme: (args: string[]) => {
+   const usage = `Usage: theme [args].
+   [args]:
+     ls: list all available themes
+     set: set theme to [theme]
 
-    switch (args[0]) {
-      case 'ls': {
-        let result = themes.map((t) => t.name.toLowerCase()).join(', ');
-        result += `You can preview all these themes here: ${packageJson.repository.url}/tree/master/docs/themes`;
+   [Examples]:
+     theme ls
+     theme set gruvboxdark
+   `;
+   if (args.length === 0) {
+     return usage;
+   }
 
-        return result;
-      }
+   switch (args[0]) {
+     case 'ls': {
+       let result = themes.map((t) => t.name.toLowerCase()).join(', ');
+       result += `You can preview all these themes here: ${packageJson.repository.url}/tree/master/docs/themes`;
 
-      case 'set': {
-        if (args.length !== 2) {
-          return usage;
-        }
+       return result;
+     }
 
-        const selectedTheme = args[1];
-        const t = themes.find((t) => t.name.toLowerCase() === selectedTheme);
+     case 'set': {
+       if (args.length !== 2) {
+         return usage;
+       }
 
-        if (!t) {
-          return `Theme '${selectedTheme}' not found. Try 'theme ls' to see all available themes.`;
-        }
+       const selectedTheme = args[1];
+       const t = themes.find((t) => t.name.toLowerCase() === selectedTheme);
 
-        theme.set(t);
+       if (!t) {
+         return `Theme '${selectedTheme}' not found. Try 'theme ls' to see all available themes.`;
+       }
 
-        return `Theme set to ${selectedTheme}`;
-      }
+       theme.set(t);
 
-      default: {
-        return usage;
-      }
-    }
-  },
-  repo: () => {
-    window.open(packageJson.repository.url, '_blank');
+       return `Theme set to ${selectedTheme}`;
+     }
 
-    return 'Opening repository...';
-  },
-  clear: () => {
-    history.set([]);
+     default: {
+       return usage;
+     }
+   }
+ },
 
-    return '';
-  },
-  email: () => {
-    window.open(`mailto:${packageJson.author.email}`);
+ repo: () => {
+   window.open(packageJson.repository.url, '_blank');
 
-    return `Opening mailto:${packageJson.author.email}...`;
-  },
-  donate: () => {
-    window.open(packageJson.funding.url, '_blank');
+   return 'Opening repository...';
+ },
+ clear: () => {
+   history.set([]);
 
-    return 'Opening donation url...';
-  },
-  weather: async (args: string[]) => {
-    const city = args.join('+');
+   return '';
+ },
+ email: () => {
+   window.open(`mailto:${packageJson.author.email}`);
 
-    if (!city) {
-      return 'Usage: weather [city]. Example: weather Brussels';
-    }
+   return `Opening mailto:${packageJson.author.email}...`;
+ },
+ donate: () => {
+   window.open(packageJson.funding.url, '_blank');
 
-    const weather = await fetch(`https://wttr.in/${city}?ATm`);
+   return 'Opening donation url...';
+ },
+ weather: async (args: string[]) => {
+   const city = args.join('+');
 
-    return weather.text();
-  },
-  exit: () => {
-    return 'Please close the tab to exit.';
-  },
-  curl: async (args: string[]) => {
-    if (args.length === 0) {
-      return 'curl: no URL provided';
-    }
+   if (!city) {
+     return 'Usage: weather [city]. Example: weather Chicago';
+   }
 
-    const url = args[0];
+   const weather = await fetch(`https://wttr.in/${city}?ATm`);
 
-    try {
-      const response = await fetch(url);
-      const data = await response.text();
+   return weather.text();
+ },
+ exit: () => {
+   return 'Please close the tab to exit.';
+ },
+ curl: async (args: string[]) => {
+   if (args.length === 0) {
+     return 'curl: no URL provided';
+   }
 
-      return data;
-    } catch (error) {
-      return `curl: could not fetch URL ${url}. Details: ${error}`;
-    }
-  },
-  banner: () => `
-███╗   ███╗██╗  ██╗████████╗████████╗███████╗██████╗
-████╗ ████║██║  ██║╚══██╔══╝╚══██╔══╝╚════██║╚════██╗
-██╔████╔██║███████║   ██║      ██║       ██╔╝ █████╔╝
-██║╚██╔╝██║╚════██║   ██║      ██║      ██╔╝ ██╔═══╝
-██║ ╚═╝ ██║     ██║   ██║      ██║      ██║  ███████╗
-╚═╝     ╚═╝     ╚═╝   ╚═╝      ╚═╝      ╚═╝  ╚══════╝ v${packageJson.version}
+   const url = args[0];
+
+   try {
+     const response = await fetch(url);
+     const data = await response.text();
+
+     return data;
+   } catch (error) {
+     return `curl: could not fetch URL ${url}. Details: ${error}`;
+   }
+ },
+ banner: () => `
+╔═══╗╔═══╗╔═══╗╔╗╔═╗╔╗╔╗╔╗╔══╗╔═╗─╔╗╔═══╗╔═══╗
+╚╗╔╗║║╔═╗║║╔═╗║║║║╔╝║║║║║║╚╣║╝║║╚╗║║╚╗╔╗║║╔═╗║
+─║║║║║║─║║║╚═╝║║╚╝╝─║╚╝╚╝║─║║─║╔╗╚╝║─║║║║║╚══╗
+─║║║║║╚═╝║║╔╗╔╝║╔╗║─║╚__╝║─║║─║║╚╗║║─║║║║╚══╗║
+╔╝╚╝║║╔═╗║║║║╚╗║║║╚╗╚╗╔╗╔╝╔╣║╗║║─║║║╔╝╚╝║║╚═╝║
+╚═══╝╚╝─╚╝╚╝╚═╝╚╝╚═╝─╚╝╚╝─╚══╝╚╝─╚═╝╚═══╝╚═══╝
+v${packageJson.version}
 
 Type 'help' to see list of available commands.
 `,
+invite: async () => {
+    // Ask the user for their invite code
+    const inviteCode = prompt('Enter your invite code:');
+    
+    // Check if invite code is provided
+    if (!inviteCode) {
+        return 'Invite code is required.';
+    }
+    
+    // Construct the URL with the invite code
+    const inviteURL = `https://invite.darkwinds.net/j/${inviteCode}`;
+    
+    // Open the URL in a new tab
+    window.open(inviteURL, '_blank');
+    
+    // Return a confirmation message
+    return `Opening invite link with code ${inviteCode}...`;
+}
 };
